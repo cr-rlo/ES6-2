@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://unpkg.com/fxjs/dist/fx.js"></script>
+</head>
+<body>
+<script>
+  // 홀수 n개 더하기
+  function f1(limit, list){
+    let acc = 0;
+    for(const a of list){
+      if(a%2){
+        const b = a * a;
+        acc += b;
+        if(--limit == 0) break;
+          // 홀수가 출력될 때마다 limit 변수에서 1을 빼주면서 0이되면 break을 한다.
+      }
+    }
+    console.log(acc);
+  }
+  f1(3, [1,2,3,4,5,6,7,8,9,10]);
+  // 총 몇개의 홀수를 더할 것인지 리밋 전달
+  // 재료가 될 배열 전달
+</script>
+
+<script>
+  // 문장으로 구성되어있는 명령형 코드를 이터러블 프로그래밍에서는 어떻게 코딩을 하는가
+  // if는 필터로
+  // 값 변화 후 변수 할당은 map으로
+  // break을 take로
+  function f2(limit, list){
+    let acc = 0;
+    for(const a of L.take(limit, L.map(a => a*a, L.filter(a => a%2, list)))){
+        acc += a;
+    }
+    console.log(acc);
+  }
+  f2(3, [1,2,3,4,5,6,7,8,9,10]);
+</script>
+
+<script>
+  // 축약 및 합산을 reduce로
+  const add = (a, b) => a+b;
+  function f3(limit, list){
+    console.log(
+      _.reduce(add,
+      // add가 (acc, a) => acc+a라면 acc는 누적하는 값의 시작값, a는 뽑혀지는 값들(더해지는 값들)
+      0,
+        L.take(limit, 
+          L.map(a => a*a, 
+            L.filter(a => a%2, list)))
+      ));
+  }
+  f3(3, [1,2,3,4,5,6,7,8,9,10]);
+
+
+  // 조금 더 이해하기 쉬운 코드를 짜고 싶다면 go함수를 통해 파이프라인 형태로 순서를 반대로 뒤집기
+  function f4(limit, list){_.go(
+    list,
+    L.filter(a => a%2),
+    L.map(a=> a*a),
+    L.take(limit),
+    _.reduce(add),
+    console.log
+  );}
+
+</script>
+</body>
+</html>
