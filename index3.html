@@ -7,6 +7,71 @@
   <script src="https://unpkg.com/fxjs/dist/fx.js"></script>
 </head>
 <body>
-  
+<script>
+// 명령형 습관 지우기 - 만능 reduce? NO
+const users = [
+  {name: 'AA', age:35},
+  {name: 'BB', age:26},
+  {name: 'CC', age:28},
+  {name: 'CC', age:34},
+  {name: 'EE', age:23},
+];
+
+console.log(
+  _.reduce((total, u) => total + u.age,
+    0,
+    users 
+  )
+);
+
+console.log(
+  _.reduce((a,b) => a+b, 
+  L.map(u => u.age, users))
+);
+// reduce에 집어넣기 전에 미리 모든 데이터를 한 가지 형 즉, a와 b에 항상 같은 형이 올 수 있게 해주면 상대적으로 코드가 매우 간결해진다.
+
+const add = (a,b) => a+b;
+console.log(
+  _.reduce(add, 
+  L.map(u => u.age, users))
+);
+</script>
+<script>
+// reduce 하나보다 map + filter + reduce
+console.log(
+  _.reduce((total, u) => {
+    if(u.age >= 30 )return total;
+    // 30세 이상이 걸리면 더하지 않고 total 값 그대로 반환
+    return total + u.age;
+    // 걸리지 않으면 total 값 누적
+  },
+  0,
+  users));
+  // 3개의 인자(함수, 초기값, 데이터))
+
+
+console.log(
+_.reduce((total, u) => u.age >= 30 ? total : total + u.age,
+0,
+users));
+// 3개의 인자(함수, 초기값, 데이터))
+
+console.log(
+_.reduce((total, u) => total + u.age,
+0,
+_.filter(u => u.age < 30, users)));
+
+console.log(
+_.reduce(add,
+  _.map(u => u.age,
+    _.filter(u => u.age < 30, users))));
+
+console.log(
+_.reduce(add,
+  L.filter(n => n < 30,
+    L.map(u => u.age, users))));
+
+
+</script>
 </body>
 </html>
