@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://unpkg.com/fxjs/dist/fx.js"></script>
+</head>
+<body>
+<script>
+// map으로 합성하기
+const f = x => x + 10;
+const g = x => x - 5;
+const fg = x => f(g(x));
+
+console.log(fg());
+
+_.go(
+  10,
+  fg,
+  console.log
+);
+
+_.go(
+  [10],
+  L.map(fg),
+  // L.map은 리모컨을 누르는 순간 들어오는 데이터들을 모두 fg 함수에 통과시켜 주겠다는 주문서만 작성한 채 멈춤
+  _.each(console.log)
+  // _.each는 리모컨을 누르는 역할 
+  // 예를 들어 _.map은 주머니 속 알맹이를 바꾸는게 목적이라면 _.each는 알맹이를 바꾸지 않고 아무런 손상 없이 다음 주자에게 그대로 리턴
+);
+// 1. 빈배열을 받는다면 L.map은 빈 배열을 받아서 지연 평가 리모컨을 만듦
+// 이때 배열 내부를 검사하거나 함수를 실행하지 않기 때문에 에러가 날 여지가 없음
+// 2. _.each가 시동을 걸기 위해 리모컨 버튼을 누름
+// 원본이 빈 배열이었기 때문에 리모컨은 누르자마자 즉시 done: true라는 신호를 보냄
+// _.each 내부의 for of 문은 done true 신호를 받으면 루프 안쪽 코드를 실행하지 않고 즉시 종료 -> 빈 상태의 이터레이터가 리턴됨
+</script>
+
+
+<script>
+// find 대신 L.filter 써보기
+const users = [
+  {name: 'AA', age:35},
+  {name: 'BB', age:26},
+  {name: 'CC', age:28},
+  {name: 'CC', age:34},
+  {name: 'EE', age:23},
+];
+
+const user = _.find(u => u.name == 'BB', users);
+if (user) {
+  console.log(user);
+}
+
+
+_.each(console.log,
+  L.take(1, 
+    L.filter(u => u.name == 'BB', users)));
+
+_.go(
+  users,
+  L.filter(u=> u.name == 'BB'),
+  L.take(1),
+  L.map(u => u.age),
+  _.each(console.log)
+);
+
+
+</script>
+</body>
+</html>
