@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://unpkg.com/fxjs/dist/fx.js"></script>
+</head>
+<body>
+<script>
+// 객체를 이터러블 프로그래밍으로 다루기
+const obj1 = {
+  a: 1,
+  b: 2,
+  c: 3,
+  d: 4,
+};
+// Object.entries로 객체를 배열로 만들고 배열은 이터레이터이기 때문에 이터러블 배열로 만들어 문제를 다룰 수 있음
+</script>
+<script>
+// 1. values
+console.log(Object.values(obj1));
+
+L.values = function *(obj){
+  // 제너레이터 문법을 통해 객체 내부를 들여다보지 않고 나중에 리모컨을 누를 때만 엔진을 가동하는 주머니를 만듦(객체 전용 지연평가 자판기)
+  for (const k in obj){
+    // 객체의 키들을 순회 -> 객체가 가진 이름표들을 k라는 변수에 하나씩 담으며 루프를 돎
+    yield obj[k];
+    // 이름표를 떼고 값만 밖으로 토스
+    // 키(k)를 사용해 객체 안의 진짜 데이터 obj[k]를 대괄호로 꺼냄
+    // k라는 변수 박스 안에 들어있는 글자를 꺼내서 그 이름의 칸을 찾음(변하는 이름 찾기)
+  }
+};
+
+
+_.go(
+  obj1,
+  Object.values,
+  // [1,2,3,4]
+  _.map(a => a + 10),
+  _.reduce((a, b) => a + b),
+  console.log
+
+);
+
+_.go(
+  obj1,
+  L.values,
+  // L.values를 하게되면 즉시 모두 배열로 만들어 평가했던 Object.values와 다르게 평가를 모두 하지 않고 결과를 만들어서 더 효율적임
+  _.map(a => a + 10),
+  _.reduce((a, b) => a + b),
+  console.log
+
+);
+
+</script>
+
+
+<script>
+// 2. entries
+L.entries = function *(obj){
+  for (const k in obj){
+    yield [k, obj[k]];
+  }
+};
+
+_.go(
+  obj1,
+  L.entries,
+  L.filter(([_, v]) => v % 2),
+  L.map(([k , v]) => ({[k]: v})),
+  // {a:1}, {b:2} ...
+  _.reduce(Object.assign),
+  // 하나씩 분리돼서 떨어지던 데이터들이 {a:1, b:2}이런식으로 합쳐짐
+  console.log
+);
+
+</script>
+
+<script>
+// 3. keys
+L.keys = function *(obj){
+  for (const k in obj){
+    yield k;
+  }
+};
+
+_.go(
+  obj1,
+  L.keys,
+  _.each(console.log)
+);
+
+</script>
+
+<script>
+// 어떠한 값이든 이터러블 프로그래밍으로 다루기
+// 객체를 제너레이터를 이용해서 이터레이터로 만들어서 이터러블 프로그래밍
+const g1 = function *(stop){
+  let i = -1;
+  while (++i < stop){
+    yield 10;
+    if (false) yield 20 + 30;
+    // 조건식이 무조건 거짓이기 때문에 이 줄을 만나도 코드를 실행하지 않음 -> 유령코드
+    yield 30;
+  }
+}
+
+const it = (function *() {
+  yield 10;
+  yield 20;
+  yield 30
+}) ();
+
+console.log([...L.take(3,g1(3))]);
+
+</script>
+
+<script>
+// object
+const a = [['a',1], ['b',2], ['c',3]]; 
+const b = {a:1, b:2, c:3};
+
+const object = entries => _.go(
+  entries,
+  L.map(([k,v]) => ({[k]: v})),
+  _.reduce(Object.assign)
+);
+
+const object2 = entries => _.reduce((obj, [k,v]) => { obj[k] = v; return obj; },{},entries);
+
+
+console.log(object(a));
+console.log(object(L.entries({b:2, c:3})));
+
+let m = new Map();
+m.set('a', 10);
+m.set('b', 20);
+m.set('c', 30);
+// Map이 이터러블을 지원하기 때문
+
+console.log(object(m));
+
+</script>
+
+<script>
+// mapObject
+const mapObject = (f, obj) => _.go(
+  obj,
+  L.entries,
+  _.map(([k, v]) => [k, f(v)]),
+  object
+);
+
+console.log(mapObject(a => a + 10, {a:1, b:2, c:3}));
+// [['a',1], ['b',2], ['c',3]] => 위 객체를 먼저 entries로 만들어서 iterable로 다루겠다
+// [['a',11], ['b',21], ['c',13]] => 보조 함수를 적용해서 이 형태로 만들겠다
+// {a:11}, {b:12} ... 다시 이 값들을 객체로 만들겠다
+// {a:11, b:12, c: 13} 최종 결과
+
+</script>
+
+<script>
+// pick
+const obj2 = {a:1, b:2, c:3, d:4, e:5};
+const pick = (ks, obj) => _.go(
+  ks,
+  L.map(k => [k, obj[k]]),
+  _.reject(([k,v]) => v === undefined),
+  object
+);
+
+console.log(pick(['b','c'], obj2));
+// { b:2, c:3 }
+console.log(pick(['b','c','z'], obj2));
+// { b:2, c:3, z:undefined }
+// undefined 값 필터링됨
+
+</script>
+
+<script>
+ // indexBy
+ const users = [
+  {id: 5, name: 'AA', age:35},
+  {id: 10, name: 'BB', age:26},
+  {id: 19, name: 'CC', age:28},
+  {id: 23, name: 'CC', age:34},
+  {id: 24, name: 'EE', age:23},
+];
+
+_.indexBy = (f, iter) => _.reduce((obj, a) => (obj[f(a)] = a, obj), {}, iter);
+// f(a)에는 _.indexBy를 호출하면서 입력한 함수 u => u.id
+// _.reduce: iter배열을 순회하며 {}객체로 합치는 압축기
+// (obj, a) => (obj[f(a)] = a, obj): obj는 현재까지 쌓아온 누적기
+// a는 순회 중인 현재의 데이터 조각 
+
+
+
+const users2 = _.indexBy(u => u.id, users);
+console.log(users2);
+users[19];
+// {id: 19, name: 'CC', age:28}
+
+// indexBy된 값을 filter하기
+console.log(_.filter(({age}) => u.age >= 30, users));
+// 그러나 user2처럼 인덱스가 되어있어 키 밸류 쌍이고 array가 아닌 것은 필터를 할 수 없음 => 이터러블할 수 없어서
+
+_.go(
+  users2,
+  L.entries,
+  // ["5", {id: 5, name: "AA", ..}]
+  _.filter(([_, {age}]) => age >= 30),
+  object
+);
+// ([_, {age}]): _는 key가 들어오는 자리 즉, "5" 이 값들이 담김
+// 두 번째 자리는 valuer가 들어오는 자리인데, {age}라고 하면 value에서 age라는 이름의 속성만 쏙 뽑아서 age에 저장해달라는 의미 
+// filter을 거치면 ["5", {id: 5, name: "AA", age: 32}] ...등이 남음
+// 
+
+
+
+
+
+</script>
+</body>
+</html>
