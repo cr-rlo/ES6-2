@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://unpkg.com/fxjs/dist/fx.js"></script>
+</head>
+<body>
+
+<script>
+
+// 아임포트 결제 누락 처리 스케쥴러 - API 설명
+const Impt = {
+  payments: {
+    1: [
+      { imp_id: 11, order_id: 1, amount: 15000 },
+      { imp_id: 12, order_id: 2, amount: 25000 },
+      { imp_id: 13, order_id: 3, amount: 10000 },
+    ],
+    2: [
+      { imp_id: 14, order_id: 4, amount: 25000 },
+      { imp_id: 15, order_id: 5, amount: 45000 },
+      { imp_id: 16, order_id: 6, amount: 15000 },
+    ],
+    3: [
+      { imp_id: 17, order_id: 7, amount: 20000 },
+      { imp_id: 18, order_id: 8, amount: 30000 },
+    ],
+    4: [],
+    5: [],
+    // ...
+  },
+  getPayments: page => {
+    console.log(`http://..?page=${page}`);
+    return _.delay(1000, Imp.payments[page]); 
+  },
+  canclePayment: imp_id => Promise.resolve(`${imp_id}: 취소완료`)
+};
+
+const DB = {
+  getOrders: ids => _.delay(100, [
+    { id: 1 },
+    { id: 3 },
+    { id: 7 }
+  ])
+};
+
+async function job(){
+  // async/await이 필요한 핵심 이유는 Imp.getPayments가 실행될 때마다 내부에서 1초씩 기다리는 비동기 작업(_.delay)을 수행하기 때문
+  // Imp.getPayments는 호출되는 순간 _.delay에 의해 미래의 값 반환
+  const payments = await _.go(
+    // 즉 이 변수에는 promise흐름이 담기게 됨
+  L.range(1, Infinity),
+  L.map(Imp.getPayments),
+  L.takeUntil(({length}) => length < 3), // 배열의 length가 3보다 작을 때까지
+  _.flat
+  );
+
+  // 실제 가맹점 측에서도 결제가 완료된 데이터 가져오기 - 가맹점 DB의 주문서 가져오기
+const order_ids = await _.go(
+  payments,
+  _.map(p => p.order_id),
+  // 결제를 시도했던 order_id들
+  DB.getOrders,
+  // 위에서 뽑은 id들을 getOrders에 던져서 그 id만 뽑아내기
+  _.map(({id}) => id)
+);
+
+  // 비교 후 결제 취소 API 실행하기
+await _.go(
+  payments,
+  L.reject(p => order_ids.includes(p.order_id)),
+  // 위 과정을 거치면 성공하지 않은 id들만 남음
+  L.map(p => p.imp_id),
+  L.map(Impt.canclePayment),
+  _.each(console.log)
+);
+
+}
+
+// 반복 실행하기 
+(function recur(){
+  job().then(recur);
+  // 비동기 작업인 job()을 수행한 뒤, 그 작업이 끝나면 다시 자기 자신(recur)을 호출하는 방식으로 무한히 반복되는 비동기 루프 구현
+  // .then을 통해서 job()이 완료되면(resolve) 그 다음 단계로 recur함수 실행
+  // 끝나는 코드를 구현하지 않았기 때문에 무한 루프
+})();
+
+// 5초에 한 번만 한다.
+// 그런데 만약 job 자체가 5초보다 더 걸린다면, job이 끝날 때까지 기다린 후 실행
+(function recur(){
+  Promise.all([
+    // Promise.all: 배열 안에 있는 모든 Promise가 완료되어야만 .then이 실행됨
+    _.delay(5000, undefined), 
+    job()
+    // _.delay와 job은 서로 기다리지 않고 동시에 병렬로 시작
+    // 병렬로 실행되기 때문에 _.delay가 먼저 끝나면 job을 기다리고, job이 먼저 끝나면 delay가 끝날 때 까지 기다린 후 then(recur)
+  ]).then(recur);
+})();
+
+/* 
+Promise.all: 여러 개의 비동기 작업을 동시에 던져놓고, 그 모두가 끝날 때까지(resolve) 기다렸다가 다음으로 넘어가게 해주는 관리자
+출력: 모든 작업의 결과 값을 배열로 모아서 반환
+특징: 하나라도 실패(reject)하면 나머지가 끝나길 기다리지 않고 즉시 전체 실패 처리
+_.delay(5000, undefined): 보통 괄호에 (시간, 전달할 값)의 형태로 사용함
+  여기서는 5초를 기다리는 것 자체가 목적이지 특별히 어떤 데이터를 넘겨줄 필요가 없기 때문에 undefined를 넣음
+
+  위 recur 코드를 통해 구현하고자 하는 것은 job()이 반복실행되는 것이지 job의 결과값이 담겨 나오는 배열 자체를 출력하는 것이 아님
+  그저 두 가지 조건이 모두 만족 된다면(시간이 더 오래걸리는 작업이 끝난다면) 곧바로 다시 recur을 호출해 다시 job()을 실행하는 것
+
+*/
+
+</script>
+</body>
+</html>
