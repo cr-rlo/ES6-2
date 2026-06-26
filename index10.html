@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://unpkg.com/fxjs/dist/fx.js"></script>
+</head>
+<body>
+  ## 프론트 엔드에서 함수형/이터러블/동시성 프로그래밍
+</body>
+<script>
+const $ = {};
+
+
+/* $.qs = document.querySelector.bind(document);
+// .bind(document)를 붙이면 this는 무조건 document로 고정
+$.qsa = document.querySelectorAll.bind(document); */
+
+
+$.qs = (sel, parent = document) => parent.querySelector(sel);
+// .bind(document)를 붙이면 this는 무조건 document로 고정
+$.qsa = (sel, parent = document) => parent.querySelectorAll(sel);
+$.find = _.curry($.qs);
+$.findAll = _.curry($.qsa);
+
+
+$.el = html => {
+  const wrap = document.createElement('div');
+  // 화면에는 보이지 않지만, 브라우저 메모리에 div라는 상자를 하나 만듦
+  wrap.innerHTML = html;
+  // 브라우저에게 이 문자열(html)을 태그로 해석해서 wrap 상자 안에 넣으라는 명령
+  // 브라우저는 이 순간 문자열을 실제 DOM노드로 바꿈
+  return wrap.children[0];
+  // 방금 생성된 요소가 든 상자(div)를 return
+};
+
+$.append = _.curry((parent, child) => parent.appendChild(child));
+
+$.closest = _.curry((sel, el) => el.closest(sel));
+
+$.remove = el => el.parentNode.removeChild(el);
+
+$.on = (event, f) => els => 
+  _.each(el => el.addEventListener(event, f), _.isIterable(els) ? els : [els]);
+
+</script>
+
+
+
+<script>
+// 이미지 목록 그리기
+const Images = {};
+
+Images.fetch = () => new Promise(resolve => setTimeout(() => resolve([
+  // resolve는 비동기 작업이 끝났으니 이제 결과를 밖으로 보내겠다고 선언하는 것
+
+  {},{},{},
+]), 200));
+
+
+const string = iter => _.reduce((a,b) => `${a}${b}`, iter);
+_.strMap = _.pipe(L.map, string);
+
+
+
+Images.tmpl = imgs => 
+  `
+  <div class = "images">
+    ${_.strMap(img => `
+      <div class = "image">
+        <div class = "box"><img src="${img.url}" alt="" </div>
+        <div class = "name">${img.name}</div>
+        <div class = "remove"></div>
+      </div>
+    `,imgs)}
+  </div>
+  `
+;
+
+
+_.go(
+  Images.fetch(),
+  Images.tmpl,
+  $.el,
+  // el => document.querySelector('body').appendChild(el),
+  $append($.qs(body)),
+  $.findAll('.image'),
+  $.on('click', e => _.go(
+    e.currentTarget,
+    $.closest('.image'),
+    $.remove))
+  ); // 삭제 구현
+
+
+_.go(
+  Images.fetch(),
+  Images.tmpl,
+  $.el,
+  // el => document.querySelector('body').appendChild(el),
+  $append($.qs(body)),
+  $.findAll('.remove'),
+  $.on('click',async ({currentTarget: ct}) => {
+    if (await Ui.confirm('정말 삭제하시겠습니까?')){
+      _.go(
+        ct,
+        $.closest('.image'),
+        $.remove
+      );
+    }
+  }
+));
+
+const Ui = {};
+
+Ui.confirm = msg => new Promise(resolve => _.go(
+  `
+  <div class = "confirm">
+    <div class = "body">
+      <div class = "msg">${msg}</div>
+      <div class = "buttons">
+        <button type = "button" class = "cancle">취소</button>
+        <button type = "button" class = "ok">확인</button>
+      </div>
+    </div>
+  </div>
+  `,
+  $.el,
+  $.append($.qs('body')),
+  _.tap(
+    $.find('.ok'),
+    $.on('click', e => _.go(
+    e.currentTarget,
+    $.closest('.confirm'),
+    $.remove,
+    _ => resolve(true)
+  ))),
+  _.tap(
+    $.find('.cancle'),
+    $.on('click', e => _.go(
+    e.currentTarget,
+    $.closest('.confirm'),
+    $.remove,
+    _ => resolve(false)
+  )))
+));
+
+
+async function f(){
+  await Ui.confirm("정말 삭제하시겠습니까?");
+
+}
+
+
+
+</script>
+</html>
