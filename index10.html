@@ -44,8 +44,85 @@ $.remove = el => el.parentNode.removeChild(el);
 $.on = (event, f) => els => 
   _.each(el => el.addEventListener(event, f), _.isIterable(els) ? els : [els]);
 
+$.addClass = _.currry((name, el) => el.classList.add(className));
+
+
 </script>
 
+<script>
+  const Ui = {};
+
+Ui.message = ({msg, btns}) => new Promise(resolve => _.go(
+  `
+  <div class = "confirm">
+    <div class = "body">
+      <div class = "msg">${optiom.msg}</div>
+      <div class = "buttons">
+        ${_.strMap(btn => `
+          <button type = "button" class = "${btn.type}">${btn.name}</button>
+        `, btns)}
+      </div>
+    </div>
+  </div>
+  `,
+  $.el,
+  $.append($.qs('body')),
+  ..._.map(btn => _.tap(
+    $.find('${btn.type}'),
+    $.on('click', e => _.go(
+    e.currentTarget,
+    $.closest('.confirm'),
+    $.remove,
+    _ => resolve(btn.value)
+  ))),btns)
+));
+
+Ui.message({
+  msg: '삭제되었습니다',
+  btns: [{
+    name: '취소',
+    type: 'cancle',
+    value: true
+  }, {
+    name: '확인',
+    type: 'ok',
+    value: true
+  }]
+});
+
+Ui.confirm = msg => Ui.message({
+  msg,
+  btns:[
+    { name: '취소', type: 'cancle', value: false },
+    { name: '확인', type: 'ok', value: true },
+  ]
+});
+
+Ui.alert = msg => Ui.message({
+  msg,
+  btns:[
+    { name: '확인', type: 'ok', value: false }]
+});
+
+
+Ui.remover = (btnSel, targetSel, before = a=>a, after) => _.pipe(
+  $.findAll(btnSel),
+  $.on('click', async ({currentTarget: ct}) => 
+    await Ui.confirm('정말 삭제하시겠습니까?') && 
+      _.go(
+        ct,
+        $.closest(targetSel),
+        _.tap(before),
+        $.remove,
+        _.tap(after)))
+);
+
+
+
+Ui.alert('삭제되었습니다');
+Ui.confirm("정말 삭제하시겠습니까?");
+
+</script>
 
 
 <script>
@@ -69,7 +146,7 @@ Images.tmpl = imgs =>
   <div class = "images">
     ${_.strMap(img => `
       <div class = "image">
-        <div class = "box"><img src="${img.url}" alt="" </div>
+        <div class = "box"><img src="" lazy-src="${img.url}" class ="fade" alt="" </div>
         <div class = "name">${img.name}</div>
         <div class = "remove"></div>
       </div>
@@ -78,79 +155,38 @@ Images.tmpl = imgs =>
   `
 ;
 
+Images.loader = limit => _.tap(
+  $.findAll('img'),
+  L.map(img => _ => new Promise(resolve => {
+    img.onload = () => resolve(img);
+    img.src = img.getAttribute('lazy-src');
+  })),
+  C.takeAllWithLimit(limit),
+  _.each(_.each($.addClass('fade-in')))
+  );
+
+_.groupBySize = _.curry((size, iter) => {
+  let r = L.range(Infinity);
+  return _.groupBy(_ => Math.floor(r.next().value / size), iter);
+});
+
+
+C.takeAllWithLimit = _.curry((limit, iter) => 
+  _.go(
+    iter,
+    _.groupBySize(limit),
+    L.values,
+    L.map(L.map(f => f())),
+    L.map(C.takeAll))
+);
 
 _.go(
   Images.fetch(),
   Images.tmpl,
   $.el,
   // el => document.querySelector('body').appendChild(el),
-  $append($.qs(body)),
-  $.findAll('.image'),
-  $.on('click', e => _.go(
-    e.currentTarget,
-    $.closest('.image'),
-    $.remove))
-  ); // 삭제 구현
-
-
-_.go(
-  Images.fetch(),
-  Images.tmpl,
-  $.el,
-  // el => document.querySelector('body').appendChild(el),
-  $append($.qs(body)),
-  $.findAll('.remove'),
-  $.on('click',async ({currentTarget: ct}) => {
-    if (await Ui.confirm('정말 삭제하시겠습니까?')){
-      _.go(
-        ct,
-        $.closest('.image'),
-        $.remove
-      );
-    }
-  }
-));
-
-const Ui = {};
-
-Ui.confirm = msg => new Promise(resolve => _.go(
-  `
-  <div class = "confirm">
-    <div class = "body">
-      <div class = "msg">${msg}</div>
-      <div class = "buttons">
-        <button type = "button" class = "cancle">취소</button>
-        <button type = "button" class = "ok">확인</button>
-      </div>
-    </div>
-  </div>
-  `,
-  $.el,
-  $.append($.qs('body')),
-  _.tap(
-    $.find('.ok'),
-    $.on('click', e => _.go(
-    e.currentTarget,
-    $.closest('.confirm'),
-    $.remove,
-    _ => resolve(true)
-  ))),
-  _.tap(
-    $.find('.cancle'),
-    $.on('click', e => _.go(
-    e.currentTarget,
-    $.closest('.confirm'),
-    $.remove,
-    _ => resolve(false)
-  )))
-));
-
-
-async function f(){
-  await Ui.confirm("정말 삭제하시겠습니까?");
-
-}
-
+  $.append($.qs(body)),
+  Ui.remover('.remove', '.image', _ => console.log('서버통신!')),Images.loader(4));
 
 
 </script>
